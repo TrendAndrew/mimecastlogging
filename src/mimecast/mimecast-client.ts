@@ -1,5 +1,5 @@
 import { MimecastClientDeps, MimecastEvent, PageResponse } from './mimecast.types';
-import { ApiError, RateLimitError } from '../shared/errors';
+import { RateLimitError } from '../shared/errors';
 import { getLogger } from '../shared/logger';
 
 export class MimecastClient {

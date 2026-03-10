@@ -1,4 +1,4 @@
-import { CachedToken, OAuthClientDeps, TokenResponse } from './auth.types';
+import { CachedToken, OAuthClientDeps } from './auth.types';
 import { AuthError } from '../shared/errors';
 import { getLogger } from '../shared/logger';
 
