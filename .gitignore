@@ -1,17 +1,6 @@
-# Claude Code
-.claude/
-.claude-flow/
-.hive-mind/
-.mcp.json
-
-# Node
 node_modules/
-package-lock.json
-
-# Environment
+dist/
+coverage/
+state/
 .env
-.env.*
-
-# OS
-.DS_Store
-Thumbs.db
+*.log

@@ -1,0 +1,111 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        type: choice
+        options:
+          - dev
+          - prod
+      iac_tool:
+        description: 'IaC tool'
+        required: true
+        type: choice
+        options:
+          - bicep
+          - terraform
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: |
+            dist/
+            package*.json
+
+  deploy-bicep:
+    if: inputs.iac_tool == 'bicep'
+    needs: build
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - uses: azure/arm-deploy@v2
+        with:
+          resourceGroupName: rg-mcvone-${{ inputs.environment }}
+          template: infra/bicep/main.bicep
+          parameters: >
+            infra/bicep/parameters/${{ inputs.environment }}.bicepparam
+            mimecastClientId=${{ secrets.MIMECAST_CLIENT_ID }}
+            mimecastClientSecret=${{ secrets.MIMECAST_CLIENT_SECRET }}
+            visionOneIngestToken=${{ secrets.VISIONONE_INGEST_TOKEN }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: deploy
+      - run: |
+          cd deploy && zip -r ../deploy.zip .
+      - uses: azure/functions-action@v1
+        with:
+          app-name: mcvone${{ inputs.environment }}-func
+          package: deploy.zip
+
+  deploy-terraform:
+    if: inputs.iac_tool == 'terraform'
+    needs: build
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.7'
+      - working-directory: infra/terraform
+        run: |
+          terraform init
+          terraform plan -var-file=environments/${{ inputs.environment }}.tfvars \
+            -var="mimecast_client_id=${{ secrets.MIMECAST_CLIENT_ID }}" \
+            -var="mimecast_client_secret=${{ secrets.MIMECAST_CLIENT_SECRET }}" \
+            -var="visionone_ingest_token=${{ secrets.VISIONONE_INGEST_TOKEN }}"
+          terraform apply -auto-approve -var-file=environments/${{ inputs.environment }}.tfvars \
+            -var="mimecast_client_id=${{ secrets.MIMECAST_CLIENT_ID }}" \
+            -var="mimecast_client_secret=${{ secrets.MIMECAST_CLIENT_SECRET }}" \
+            -var="visionone_ingest_token=${{ secrets.VISIONONE_INGEST_TOKEN }}"
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: deploy
+      - run: |
+          cd deploy && zip -r ../deploy.zip .
+      - uses: azure/functions-action@v1
+        with:
+          app-name: mcvone${{ inputs.environment }}-func
+          package: deploy.zip

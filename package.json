@@ -1,5 +1,33 @@
 {
+  "name": "mimecast-visionone-forwarder",
+  "version": "1.0.0",
+  "description": "Poll Mimecast Cloud Gateway SIEM API and forward logs to Trend Micro Vision One",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "ts-node src/index.ts",
+    "start": "node dist/index.js",
+    "test": "jest --coverage",
+    "lint": "eslint src/ tests/"
+  },
   "dependencies": {
-    "pdf-parse": "^2.4.5"
+    "axios": "^1.7.0",
+    "dotenv": "^16.4.0",
+    "pino": "^9.0.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.0",
+    "@types/node": "^20.14.0",
+    "eslint": "^8.57.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.0",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.5.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }
