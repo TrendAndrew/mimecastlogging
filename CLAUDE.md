@@ -1,54 +1,36 @@
-# Claude Code Configuration - RuFlo V3
+# Mimecast SIEM to Vision One Log Forwarder
 
-## Behavioral Rules (Always Enforced)
+## Project Overview
 
-- Do what has been asked; nothing more, nothing less
-- NEVER create files unless they're absolutely necessary for achieving your goal
-- ALWAYS prefer editing an existing file to creating a new one
-- NEVER proactively create documentation files (*.md) or README files unless explicitly requested
-- NEVER save working files, text/mds, or tests to the root folder
-- Never continuously check status after spawning a swarm — wait for results
-- ALWAYS read a file before editing it
-- NEVER commit secrets, credentials, or .env files
+TypeScript Node.js service that polls the Mimecast Cloud Gateway SIEM API (OAuth 2.0) and forwards security events to Trend Micro Vision One as NDJSON.
 
-## File Organization
+## Key Architecture
 
-- NEVER save to root folder — use the directories below
-- Use `/src` for source code files
-- Use `/tests` for test files
-- Use `/docs` for documentation and markdown files
-- Use `/config` for configuration files
-- Use `/scripts` for utility scripts
-- Use `/examples` for example code
+- **Source**: Mimecast Cloud Gateway Streaming SIEM API (OAuth 2.0, JSON, paginated)
+- **Destination**: Vision One Data Pipeline API (`/v3.0/xdr/oat/dataPipeline/packageLogs`)
+- **Pattern**: Dependency injection throughout, London School TDD
+- **Runtime**: Node.js 18+, TypeScript 5.5+
 
-## Project Architecture
+### Module Layout
 
-- Follow Domain-Driven Design with bounded contexts
-- Keep files under 500 lines
-- Use typed interfaces for all public APIs
-- Prefer TDD London School (mock-first) for new code
-- Use event sourcing for state changes
-- Ensure input validation at system boundaries
-
-### Project Config
-
-- **Topology**: hierarchical-mesh
-- **Max Agents**: 15
-- **Memory**: hybrid
-- **HNSW**: Enabled
-- **Neural**: Enabled
+| Module | Purpose |
+|--------|---------|
+| `src/config/` | Zod-validated env var loading |
+| `src/auth/` | OAuth 2.0 client_credentials with token cache |
+| `src/mimecast/` | SIEM API client, pagination, rate limiting |
+| `src/transformer/` | JSON to NDJSON + 4MB chunking |
+| `src/visionone/` | Vision One ingest with retry on 5xx |
+| `src/poller/` | Tick lifecycle + atomic state persistence |
+| `src/shared/` | Logger (pino), errors, rate limiter (300/hr) |
 
 ## Build & Test
 
 ```bash
-# Build
-npm run build
-
-# Test
-npm test
-
-# Lint
-npm run lint
+npm run build    # TypeScript compilation
+npm test         # Jest with coverage (27 tests, 86% coverage)
+npm run lint     # ESLint
+npm run dev      # ts-node for local development
+npm start        # Run compiled output
 ```
 
 - ALWAYS run tests after making code changes
@@ -58,9 +40,8 @@ npm run lint
 
 - NEVER hardcode API keys, secrets, or credentials in source files
 - NEVER commit .env files or any file containing secrets
+- All secrets in Azure deployment use Key Vault references
 - Always validate user input at system boundaries
-- Always sanitize file paths to prevent directory traversal
-- Run `npx @claude-flow/cli@latest security scan` after security-related changes
 
 ## Concurrency: 1 MESSAGE = ALL RELATED OPERATIONS
 
