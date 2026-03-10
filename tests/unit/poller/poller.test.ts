@@ -49,4 +49,35 @@ describe('Poller', () => {
     (deps.fetchEvents as jest.Mock).mockRejectedValue(new Error('Network error'));
     await expect(poller.tick()).rejects.toThrow('Network error');
   });
+
+  it('should start and run first tick immediately', async () => {
+    await poller.start();
+    expect(deps.fetchEvents).toHaveBeenCalledTimes(1);
+    poller.stop();
+  });
+
+  it('should not run concurrent ticks', async () => {
+    // First tick is running
+    let resolveFirst: () => void;
+    (deps.fetchEvents as jest.Mock).mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveFirst = () => resolve({ events: [{ id: '1' }], nextToken: 'tok' });
+      }),
+    );
+
+    const tickPromise = poller.tick();
+    // Second tick should bail out immediately
+    await poller.tick();
+    expect(deps.fetchEvents).toHaveBeenCalledTimes(1);
+
+    resolveFirst!();
+    await tickPromise;
+  });
+
+  it('should stop cleanly when timer is set', async () => {
+    await poller.start();
+    poller.stop();
+    // Calling stop again should be a no-op
+    poller.stop();
+  });
 });

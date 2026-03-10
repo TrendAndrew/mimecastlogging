@@ -47,4 +47,16 @@ describe('loadConfig', () => {
     process.env.POLL_INTERVAL_MS = '100';
     expect(() => loadConfig()).toThrow();
   });
+
+  it('should use defaults for optional fields', () => {
+    delete process.env.VISIONONE_VENDOR;
+    delete process.env.VISIONONE_PRODUCT;
+    delete process.env.POLL_INTERVAL_MS;
+    delete process.env.LOG_LEVEL;
+    const config = loadConfig();
+    expect(config.visionOne.vendor).toBe('Mimecast');
+    expect(config.visionOne.product).toBe('Email Security');
+    expect(config.pollIntervalMs).toBe(300000);
+    expect(config.logLevel).toBe('info');
+  });
 });

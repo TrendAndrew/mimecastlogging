@@ -78,4 +78,24 @@ describe('MimecastClient', () => {
       expect.objectContaining({ pageToken: 'start-token' }),
     );
   });
+
+  it('should retry on RateLimitError then succeed', async () => {
+    const { RateLimitError } = require('../../../src/shared/errors');
+    const page: PageResponse = {
+      data: [{ id: '1', type: 'receipt', timestamp: '2024-01-01T00:00:00Z' }],
+      meta: { pagination: {} },
+    };
+    mockHttpGet
+      .mockRejectedValueOnce(new RateLimitError('Rate limited', 10))
+      .mockResolvedValueOnce(page);
+
+    const result = await client.fetchEvents();
+    expect(result.events).toHaveLength(1);
+    expect(mockHttpGet).toHaveBeenCalledTimes(2);
+  });
+
+  it('should rethrow non-rate-limit errors', async () => {
+    mockHttpGet.mockRejectedValue(new Error('Connection refused'));
+    await expect(client.fetchEvents()).rejects.toThrow('Connection refused');
+  });
 });
