@@ -4,3 +4,5 @@ coverage/
 state/
 .env
 *.log
+.claude-flow/
+.hive-mind/
