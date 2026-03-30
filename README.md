@@ -78,7 +78,39 @@ cd tools/mimecast-forwarder
 npm install && npm run build
 ```
 
-### Option 4: Azure Functions (Serverless)
+### Option 4: Azure Container Instance (Docker on Azure)
+
+Deploy the Docker image directly to Azure with no orchestrator overhead:
+
+```bash
+# Create resource group
+az group create --name rg-mcvone-dev --location australiaeast
+
+# Deploy with Bicep
+az deployment group create \
+  --resource-group rg-mcvone-dev \
+  --template-file infra/bicep/main-aci.bicep \
+  --parameters \
+    containerImage="ghcr.io/YOUR_ORG/mimecastlogging:latest" \
+    mimecastClientId="YOUR_CLIENT_ID" \
+    mimecastClientSecret="YOUR_CLIENT_SECRET" \
+    visionOneIngestToken="YOUR_V1_TOKEN" \
+    visionOneIngestUrl="https://xlogr-ase2.xdr.trendmicro.com/ingest/api/v1/third_party_log/raw"
+
+# Or deploy with Terraform
+cd infra/terraform
+terraform init
+terraform apply -var-file=environments/dev.tfvars \
+  -var="container_image=ghcr.io/YOUR_ORG/mimecastlogging:latest" \
+  -var="mimecast_client_id=YOUR_CLIENT_ID" \
+  -var="mimecast_client_secret=YOUR_CLIENT_SECRET" \
+  -var="visionone_ingest_token=YOUR_V1_TOKEN" \
+  -var="visionone_ingest_url=https://xlogr-ase2.xdr.trendmicro.com/ingest/api/v1/third_party_log/raw"
+```
+
+Estimated cost: **~$3-10/month** (0.5 CPU, 0.5 GB RAM). Auto-restarts on failure.
+
+### Option 5: Azure Functions (Serverless)
 
 Deploy to Azure using the included IaC templates. See [Azure Deployment](#azure-deployment) below.
 
@@ -224,9 +256,22 @@ MIMECAST_EVENT_TYPES=receipt,ttp-url,ttp-attachment,ttp-impersonation
 
 ## Azure Deployment
 
-The project ships with both **Bicep** and **Terraform** IaC templates. Use whichever your team standardises on.
+The project ships with both **Bicep** and **Terraform** IaC templates. Two deployment models are available:
 
-### Architecture
+### Option A: Azure Container Instance (Recommended)
+
+```
+Azure Resource Group
+  +-- Container Instance (always-on)  -- runs the Docker image
+       +-- Env vars for config         -- secrets passed as secure env vars
+       +-- Volume mount                -- poller state persistence
+```
+
+Estimated cost: **~$3-10/month** (0.5 CPU, 0.5 GB RAM). Auto-restarts on failure.
+
+Use `main-aci.bicep` or `main-aci.tf` — see [Option 4](#option-4-azure-container-instance-docker-on-azure) above for commands.
+
+### Option B: Azure Functions (Serverless)
 
 ```
 Azure Resource Group
