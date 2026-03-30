@@ -19,7 +19,12 @@ export class Poller {
     const logger = getLogger();
     logger.info({ intervalMs: this.deps.intervalMs }, 'Starting poller');
 
-    await this.tick();
+    // First tick — log errors but don't crash
+    try {
+      await this.tick();
+    } catch (err) {
+      logger.error({ err }, 'First tick failed, will retry on next interval');
+    }
 
     this.timer = setInterval(() => {
       if (!this.running) {
@@ -109,8 +114,7 @@ export class Poller {
         );
       }
     } catch (err) {
-      logger.error({ err }, 'Poll tick error');
-      throw err;
+      logger.error({ err }, 'Poll tick error, will retry next interval');
     } finally {
       this.running = false;
     }

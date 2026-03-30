@@ -45,9 +45,10 @@ describe('Poller', () => {
     expect(deps.fetchPage).toHaveBeenCalledWith('saved-token');
   });
 
-  it('should propagate errors from tick', async () => {
+  it('should log errors from tick without crashing', async () => {
     (deps.fetchPage as jest.Mock).mockRejectedValue(new Error('Network error'));
-    await expect(poller.tick()).rejects.toThrow('Network error');
+    // tick should not throw — it logs and continues
+    await expect(poller.tick()).resolves.toBeUndefined();
   });
 
   it('should start and run first tick immediately', async () => {

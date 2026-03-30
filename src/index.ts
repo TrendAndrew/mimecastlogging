@@ -24,7 +24,13 @@ async function main(): Promise<void> {
     clientId: config.mimecast.clientId,
     clientSecret: config.mimecast.clientSecret,
     httpPost: async (url, data, headers) => {
-      const resp = await axios.post(url, data, { headers });
+      const resp = await axios.post(url, data, {
+        headers,
+        validateStatus: () => true,
+      });
+      if (resp.status >= 400) {
+        throw new ApiError(`OAuth error: ${resp.status} ${JSON.stringify(resp.data)}`, resp.status, false);
+      }
       return resp.data;
     },
   });
@@ -35,7 +41,11 @@ async function main(): Promise<void> {
     getToken: () => oauthClient.getToken(),
     rateLimiter,
     httpGet: async (url, headers, params) => {
-      const resp = await axios.get<PageResponse>(url, { headers, params });
+      const resp = await axios.get<PageResponse>(url, {
+        headers,
+        params,
+        validateStatus: () => true, // don't throw on non-2xx
+      });
       if (resp.status === 429) {
         const retryAfter = parseInt(resp.headers['retry-after'] || '60', 10) * 1000;
         throw new RateLimitError('Mimecast rate limit hit', retryAfter);
@@ -53,7 +63,10 @@ async function main(): Promise<void> {
     vendor: config.visionOne.vendor,
     product: config.visionOne.product,
     httpPost: async (url, body, headers) => {
-      const resp = await axios.post(url, body, { headers });
+      const resp = await axios.post(url, body, {
+        headers,
+        validateStatus: () => true, // don't throw on non-2xx
+      });
       if (resp.status >= 500) {
         throw new ApiError(`Vision One server error: ${resp.status}`, resp.status, true);
       }
@@ -84,9 +97,11 @@ async function main(): Promise<void> {
   process.on('SIGINT', shutdown);
 
   await poller.start();
+  logger.info('Poller running, waiting for events...');
 }
 
 main().catch((err) => {
-  console.error('Fatal error:', err);
+  // Only config/startup errors should be fatal — poller errors are handled internally
+  console.error('Startup error:', err);
   process.exit(1);
 });
