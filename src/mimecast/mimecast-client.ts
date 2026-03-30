@@ -11,6 +11,8 @@ export class MimecastClient {
     let pageToken = fromToken;
     let hasMore = true;
 
+    logger.info({ fromToken: fromToken ? '(resuming)' : '(fresh)' }, 'Fetching events from Mimecast');
+
     while (hasMore) {
       if (this.deps.rateLimiter.remaining() < 10) {
         logger.warn('Rate limit headroom low, stopping pagination');

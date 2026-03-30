@@ -17,7 +17,8 @@ export class VisionOneClient {
     }
 
     const chunks = chunkNdjson(ndjsonPayload);
-    logger.info({ chunks: chunks.length }, 'Ingesting NDJSON payload to Vision One');
+    const lineCount = ndjsonPayload.split('\n').length;
+    logger.info({ events: lineCount, chunks: chunks.length }, 'Sending to Vision One');
 
     for (let i = 0; i < chunks.length; i++) {
       await this.postChunk(chunks[i], i + 1, chunks.length);

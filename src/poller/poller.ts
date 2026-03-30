@@ -57,6 +57,7 @@ export class Poller {
       }
 
       const payload = this.deps.transform(events);
+      logger.info({ eventCount: events.length }, 'Transforming events to NDJSON');
       const result = await this.deps.ingest(payload);
 
       await this.deps.stateStore.save({
