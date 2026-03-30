@@ -53,17 +53,24 @@ export class MimecastClient {
       const events = response.value || [];
       allEvents.push(...events);
 
+      logger.info(
+        {
+          page: allEvents.length > 0 ? Math.ceil(allEvents.length / 100) : 1,
+          pageEvents: events.length,
+          totalEvents: allEvents.length,
+          isCaughtUp: response.isCaughtUp,
+        },
+        'Page fetched',
+      );
+
+      const nextPage = response['@nextPage'] || response['@nextLink'];
       if (response.isCaughtUp) {
-        pageToken = response['@nextPage'] || response['@nextLink'];
+        pageToken = nextPage;
         hasMore = false;
+      } else if (nextPage && nextPage !== pageToken) {
+        pageToken = nextPage;
       } else {
-        const nextPage = response['@nextPage'] || response['@nextLink'];
-        if (nextPage && nextPage !== pageToken) {
-          pageToken = nextPage;
-          logger.debug({ pageToken, eventCount: allEvents.length }, 'Fetching next page');
-        } else {
-          hasMore = false;
-        }
+        hasMore = false;
       }
     }
 
