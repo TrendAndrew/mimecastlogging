@@ -65,11 +65,14 @@ export class MimecastClient {
 
       const nextPage = response['@nextPage'] || response['@nextLink'];
       if (response.isCaughtUp) {
+        // Caught up — save token for next poll, stop fetching
         pageToken = nextPage;
         hasMore = false;
-      } else if (nextPage && nextPage !== pageToken) {
+      } else if (nextPage) {
+        // More events available — update token (may be same token, API still has data)
         pageToken = nextPage;
-      } else {
+      } else if (events.length === 0) {
+        // No token and no events — nothing more to fetch
         hasMore = false;
       }
     }
