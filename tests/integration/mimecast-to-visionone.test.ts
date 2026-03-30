@@ -48,11 +48,12 @@ describe('Integration: Mimecast → Vision One pipeline', () => {
       }),
     });
 
-    // Execute pipeline
-    const { events } = await mimecastClient.fetchEvents();
-    expect(events).toHaveLength(2);
+    // Execute pipeline — fetch single page
+    const page = await mimecastClient.fetchPage();
+    expect(page.events).toHaveLength(2);
+    expect(page.isCaughtUp).toBe(true);
 
-    const cef = toCef(events);
+    const cef = toCef(page.events);
     expect(cef.split('\n')).toHaveLength(2);
 
     const result = await visionOneClient.ingest(cef);

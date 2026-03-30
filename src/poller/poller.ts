@@ -2,7 +2,7 @@ import { getLogger } from '../shared/logger';
 import { StateStore } from './state-store';
 
 export interface PollerDeps {
-  fetchEvents: (fromToken?: string) => Promise<{ events: unknown[]; nextToken?: string }>;
+  fetchPage: (fromToken?: string) => Promise<{ events: unknown[]; nextToken?: string; isCaughtUp: boolean }>;
   transform: (events: unknown[]) => string;
   ingest: (payload: string) => Promise<{ accepted: boolean; chunksSubmitted: number }>;
   stateStore: StateStore;
@@ -46,30 +46,68 @@ export class Poller {
 
     try {
       const state = await this.deps.stateStore.load();
-      logger.info({ lastToken: state.lastPageToken }, 'Poll tick starting');
+      let pageToken = state.lastPageToken;
+      let totalEvents = 0;
+      let totalChunks = 0;
+      let pageNum = 0;
+      let pendingIngest: Promise<void> | null = null;
 
-      const { events, nextToken } = await this.deps.fetchEvents(state.lastPageToken);
+      logger.info({ lastToken: pageToken }, 'Poll tick starting');
 
-      if (events.length === 0) {
-        logger.info('No new events');
-        this.running = false;
-        return;
+      while (true) {
+        pageNum++;
+        const { events, nextToken, isCaughtUp } = await this.deps.fetchPage(pageToken);
+
+        if (events.length > 0) {
+          const payload = this.deps.transform(events);
+          const currentPageToken = nextToken;
+          const currentEventCount = events.length;
+
+          // Wait for any previous page's ingest to complete before starting next
+          if (pendingIngest) {
+            await pendingIngest;
+          }
+
+          logger.info({ page: pageNum, eventCount: events.length }, 'Sending page to Vision One');
+
+          // Start ingest + checkpoint — runs while we fetch the next page
+          pendingIngest = (async () => {
+            const result = await this.deps.ingest(payload);
+            // Only checkpoint after successful ingest
+            await this.deps.stateStore.save({
+              lastPageToken: currentPageToken,
+              lastPollTime: new Date().toISOString(),
+              lastEventCount: currentEventCount,
+            });
+            totalEvents += currentEventCount;
+            totalChunks += result.chunksSubmitted;
+          })();
+        }
+
+        pageToken = nextToken;
+
+        if (isCaughtUp) {
+          break;
+        }
+
+        if (events.length === 0 && !nextToken) {
+          break;
+        }
       }
 
-      const payload = this.deps.transform(events);
-      logger.info({ eventCount: events.length }, 'Transforming events to CEF');
-      const result = await this.deps.ingest(payload);
+      // Wait for final page ingest to complete
+      if (pendingIngest) {
+        await pendingIngest;
+      }
 
-      await this.deps.stateStore.save({
-        lastPageToken: nextToken,
-        lastPollTime: new Date().toISOString(),
-        lastEventCount: events.length,
-      });
-
-      logger.info(
-        { eventCount: events.length, chunksSubmitted: result.chunksSubmitted },
-        'Poll tick complete',
-      );
+      if (totalEvents === 0) {
+        logger.info('No new events');
+      } else {
+        logger.info(
+          { totalEvents, totalChunks, pages: pageNum },
+          'Poll tick complete',
+        );
+      }
     } catch (err) {
       logger.error({ err }, 'Poll tick error');
       throw err;

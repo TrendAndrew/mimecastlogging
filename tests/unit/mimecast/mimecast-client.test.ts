@@ -24,46 +24,40 @@ describe('MimecastClient', () => {
     client = new MimecastClient(deps);
   });
 
-  it('should fetch events from single page', async () => {
+  it('should fetch a single page of events', async () => {
     const page: PageResponse = {
       value: [{ id: '1', type: 'receipt', timestamp: '2024-01-01T00:00:00Z' }],
       isCaughtUp: true,
     };
     mockHttpGet.mockResolvedValue(page);
 
-    const result = await client.fetchEvents();
+    const result = await client.fetchPage();
     expect(result.events).toHaveLength(1);
     expect(result.events[0].id).toBe('1');
+    expect(result.isCaughtUp).toBe(true);
   });
 
-  it('should paginate through multiple pages', async () => {
-    const page1: PageResponse = {
+  it('should return isCaughtUp false when more pages available', async () => {
+    const page: PageResponse = {
       value: [{ id: '1', type: 'receipt', timestamp: '2024-01-01T00:00:00Z' }],
       '@nextPage': 'token2',
       isCaughtUp: false,
     };
-    const page2: PageResponse = {
-      value: [{ id: '2', type: 'receipt', timestamp: '2024-01-01T00:01:00Z' }],
-      isCaughtUp: true,
-    };
-    mockHttpGet.mockResolvedValueOnce(page1).mockResolvedValueOnce(page2);
+    mockHttpGet.mockResolvedValue(page);
 
-    const result = await client.fetchEvents();
-    expect(result.events).toHaveLength(2);
-    expect(mockHttpGet).toHaveBeenCalledTimes(2);
+    const result = await client.fetchPage();
+    expect(result.events).toHaveLength(1);
+    expect(result.isCaughtUp).toBe(false);
+    expect(result.nextToken).toBe('token2');
   });
 
   it('should stop when rate limit headroom is low', async () => {
-    mockRateLimiter.remaining.mockReturnValueOnce(200).mockReturnValue(5);
-    const page: PageResponse = {
-      value: [{ id: '1', type: 'receipt', timestamp: '2024-01-01T00:00:00Z' }],
-      '@nextPage': 'token2',
-      isCaughtUp: false,
-    };
-    mockHttpGet.mockResolvedValue(page);
+    mockRateLimiter.remaining.mockReturnValue(5);
 
-    const result = await client.fetchEvents();
-    expect(result.events).toHaveLength(1);
+    const result = await client.fetchPage();
+    expect(result.events).toHaveLength(0);
+    expect(result.isCaughtUp).toBe(true);
+    expect(mockHttpGet).not.toHaveBeenCalled();
   });
 
   it('should pass fromToken as token param', async () => {
@@ -73,7 +67,7 @@ describe('MimecastClient', () => {
     };
     mockHttpGet.mockResolvedValue(page);
 
-    await client.fetchEvents('start-token');
+    await client.fetchPage('start-token');
     expect(mockHttpGet).toHaveBeenCalledWith(
       expect.any(String),
       expect.any(Object),
@@ -91,13 +85,13 @@ describe('MimecastClient', () => {
       .mockRejectedValueOnce(new RateLimitError('Rate limited', 10))
       .mockResolvedValueOnce(page);
 
-    const result = await client.fetchEvents();
+    const result = await client.fetchPage();
     expect(result.events).toHaveLength(1);
     expect(mockHttpGet).toHaveBeenCalledTimes(2);
   });
 
   it('should rethrow non-rate-limit errors', async () => {
     mockHttpGet.mockRejectedValue(new Error('Connection refused'));
-    await expect(client.fetchEvents()).rejects.toThrow('Connection refused');
+    await expect(client.fetchPage()).rejects.toThrow('Connection refused');
   });
 });

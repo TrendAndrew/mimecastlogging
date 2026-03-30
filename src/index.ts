@@ -67,7 +67,7 @@ async function main(): Promise<void> {
   const stateStore = new StateStore();
 
   const poller = new Poller({
-    fetchEvents: (fromToken) => mimecastClient.fetchEvents(fromToken),
+    fetchPage: (fromToken) => mimecastClient.fetchPage(fromToken),
     transform: (events) => toCef(events as any),
     ingest: (payload) => visionOneClient.ingest(payload),
     stateStore,
