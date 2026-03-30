@@ -2,7 +2,6 @@ import { OAuthClient } from '../../src/auth/oauth-client';
 import { MimecastClient } from '../../src/mimecast/mimecast-client';
 import { toCef } from '../../src/transformer/transformer';
 import { VisionOneClient } from '../../src/visionone/visionone-client';
-import { RateLimiter } from '../../src/shared/rate-limiter';
 import { PageResponse } from '../../src/mimecast/mimecast.types';
 
 describe('Integration: Mimecast → Vision One pipeline', () => {
@@ -23,13 +22,10 @@ describe('Integration: Mimecast → Vision One pipeline', () => {
       }),
     });
 
-    const rateLimiter = new RateLimiter({ maxRequests: 300, windowMs: 3600000 });
-
     const mimecastClient = new MimecastClient({
       baseUrl: 'https://mock.mimecast.com',
       eventTypes: ['receipt', 'ttp-url'],
       getToken: () => oauthClient.getToken(),
-      rateLimiter,
       httpGet: jest.fn().mockResolvedValue({
         value: mockEvents,
         isCaughtUp: true,

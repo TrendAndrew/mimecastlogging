@@ -1,7 +1,6 @@
 import axios from 'axios';
 import { loadConfig } from './config/config';
 import { createLogger } from './shared/logger';
-import { RateLimiter } from './shared/rate-limiter';
 import { OAuthClient } from './auth/oauth-client';
 import { MimecastClient } from './mimecast/mimecast-client';
 import { toCef } from './transformer/transformer';
@@ -16,8 +15,6 @@ async function main(): Promise<void> {
   const logger = createLogger(config.logLevel);
 
   logger.info('Mimecast → Vision One forwarder starting');
-
-  const rateLimiter = new RateLimiter({ maxRequests: 300, windowMs: 3600000 });
 
   const oauthClient = new OAuthClient({
     baseUrl: config.mimecast.baseUrl,
@@ -39,7 +36,6 @@ async function main(): Promise<void> {
     baseUrl: config.mimecast.baseUrl,
     eventTypes: config.mimecast.eventTypes,
     getToken: () => oauthClient.getToken(),
-    rateLimiter,
     httpGet: async (url, headers, params) => {
       const resp = await axios.get<PageResponse>(url, {
         headers,

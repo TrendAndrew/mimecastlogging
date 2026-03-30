@@ -3,22 +3,14 @@ import { MimecastClientDeps, PageResponse } from '../../../src/mimecast/mimecast
 
 describe('MimecastClient', () => {
   let mockHttpGet: jest.Mock;
-  let mockRateLimiter: any;
   let client: MimecastClient;
 
   beforeEach(() => {
     mockHttpGet = jest.fn();
-    mockRateLimiter = {
-      canProceed: jest.fn().mockReturnValue(true),
-      remaining: jest.fn().mockReturnValue(200),
-      record: jest.fn(),
-      waitForSlot: jest.fn().mockResolvedValue(undefined),
-    };
     const deps: MimecastClientDeps = {
       baseUrl: 'https://api.services.mimecast.com',
       eventTypes: ['receipt'],
       getToken: jest.fn().mockResolvedValue('test-token'),
-      rateLimiter: mockRateLimiter,
       httpGet: mockHttpGet,
     };
     client = new MimecastClient(deps);
@@ -49,15 +41,6 @@ describe('MimecastClient', () => {
     expect(result.events).toHaveLength(1);
     expect(result.isCaughtUp).toBe(false);
     expect(result.nextToken).toBe('token2');
-  });
-
-  it('should stop when rate limit headroom is low', async () => {
-    mockRateLimiter.remaining.mockReturnValue(5);
-
-    const result = await client.fetchPage();
-    expect(result.events).toHaveLength(0);
-    expect(result.isCaughtUp).toBe(true);
-    expect(mockHttpGet).not.toHaveBeenCalled();
   });
 
   it('should pass fromToken as token param', async () => {

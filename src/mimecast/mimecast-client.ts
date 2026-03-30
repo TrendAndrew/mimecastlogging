@@ -14,14 +14,6 @@ export class MimecastClient {
   async fetchPage(fromToken?: string): Promise<PageResult> {
     const logger = getLogger();
 
-    if (this.deps.rateLimiter.remaining() < 10) {
-      logger.warn('Rate limit headroom low, skipping fetch');
-      return { events: [], isCaughtUp: true };
-    }
-
-    await this.deps.rateLimiter.waitForSlot();
-    this.deps.rateLimiter.record();
-
     const token = await this.deps.getToken();
     const params: Record<string, string> = {};
     if (fromToken) {
@@ -31,33 +23,7 @@ export class MimecastClient {
       params.type = this.deps.eventTypes.join(',');
     }
 
-    let response: PageResponse;
-    try {
-      response = await this.deps.httpGet(
-        `${this.deps.baseUrl}/siem/v1/events/cg`,
-        {
-          Authorization: `Bearer ${token}`,
-          Accept: 'application/json',
-        },
-        params,
-      );
-    } catch (err) {
-      if (err instanceof RateLimitError) {
-        logger.warn({ retryAfterMs: err.retryAfterMs }, 'Rate limited by Mimecast, backing off');
-        await this.backoff(err.retryAfterMs);
-        // Retry once after backoff
-        response = await this.deps.httpGet(
-          `${this.deps.baseUrl}/siem/v1/events/cg`,
-          {
-            Authorization: `Bearer ${token}`,
-            Accept: 'application/json',
-          },
-          params,
-        );
-      } else {
-        throw err;
-      }
-    }
+    const response = await this.fetchWithRetry(token, params);
 
     const events = response.value || [];
     const nextToken = response['@nextPage'] || response['@nextLink'];
@@ -75,6 +41,32 @@ export class MimecastClient {
       nextToken,
       isCaughtUp: response.isCaughtUp ?? (events.length === 0 && !nextToken),
     };
+  }
+
+  private async fetchWithRetry(token: string, params: Record<string, string>, attempt = 1): Promise<PageResponse> {
+    const logger = getLogger();
+    const maxRetries = 3;
+
+    try {
+      return await this.deps.httpGet(
+        `${this.deps.baseUrl}/siem/v1/events/cg`,
+        {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json',
+        },
+        params,
+      );
+    } catch (err) {
+      if (err instanceof RateLimitError && attempt <= maxRetries) {
+        logger.warn(
+          { retryAfterMs: err.retryAfterMs, attempt },
+          'Rate limited by Mimecast, backing off',
+        );
+        await this.backoff(err.retryAfterMs);
+        return this.fetchWithRetry(token, params, attempt + 1);
+      }
+      throw err;
+    }
   }
 
   private async backoff(baseMs: number): Promise<void> {
