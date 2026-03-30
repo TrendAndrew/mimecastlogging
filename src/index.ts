@@ -4,7 +4,7 @@ import { createLogger } from './shared/logger';
 import { RateLimiter } from './shared/rate-limiter';
 import { OAuthClient } from './auth/oauth-client';
 import { MimecastClient } from './mimecast/mimecast-client';
-import { toNdjson } from './transformer/transformer';
+import { toCef } from './transformer/transformer';
 import { VisionOneClient } from './visionone/visionone-client';
 import { Poller } from './poller/poller';
 import { StateStore } from './poller/state-store';
@@ -68,7 +68,7 @@ async function main(): Promise<void> {
 
   const poller = new Poller({
     fetchEvents: (fromToken) => mimecastClient.fetchEvents(fromToken),
-    transform: (events) => toNdjson(events as any),
+    transform: (events) => toCef(events as any),
     ingest: (payload) => visionOneClient.ingest(payload),
     stateStore,
     intervalMs: config.pollIntervalMs,

@@ -1,6 +1,6 @@
 import { OAuthClient } from '../../src/auth/oauth-client';
 import { MimecastClient } from '../../src/mimecast/mimecast-client';
-import { toNdjson } from '../../src/transformer/transformer';
+import { toCef } from '../../src/transformer/transformer';
 import { VisionOneClient } from '../../src/visionone/visionone-client';
 import { RateLimiter } from '../../src/shared/rate-limiter';
 import { PageResponse } from '../../src/mimecast/mimecast.types';
@@ -52,16 +52,17 @@ describe('Integration: Mimecast → Vision One pipeline', () => {
     const { events } = await mimecastClient.fetchEvents();
     expect(events).toHaveLength(2);
 
-    const ndjson = toNdjson(events);
-    expect(ndjson.split('\n')).toHaveLength(2);
+    const cef = toCef(events);
+    expect(cef.split('\n')).toHaveLength(2);
 
-    const result = await visionOneClient.ingest(ndjson);
+    const result = await visionOneClient.ingest(cef);
     expect(result.accepted).toBe(true);
     expect(ingestCalls).toHaveLength(1);
 
-    // Verify NDJSON content
+    // Verify CEF content
     const lines = ingestCalls[0].split('\n');
-    expect(JSON.parse(lines[0]).subject).toBe('Test email');
-    expect(JSON.parse(lines[1]).url).toBe('https://example.com');
+    expect(lines[0]).toMatch(/^CEF:0\|Mimecast\|/);
+    expect(lines[0]).toContain('msg=Test email');
+    expect(lines[1]).toContain('request=https://example.com');
   });
 });
