@@ -23,7 +23,7 @@ export class MimecastClient {
       const token = await this.deps.getToken();
       const params: Record<string, string> = {};
       if (pageToken) {
-        params.pageToken = pageToken;
+        params.token = pageToken;
       }
       if (this.deps.eventTypes.length > 0) {
         params.type = this.deps.eventTypes.join(',');
@@ -48,14 +48,20 @@ export class MimecastClient {
         throw err;
       }
 
-      allEvents.push(...response.data);
+      const events = response.value || [];
+      allEvents.push(...events);
 
-      const nextPage = response.meta?.pagination?.next || response.meta?.pagination?.pageToken;
-      if (nextPage && nextPage !== pageToken) {
-        pageToken = nextPage;
-        logger.debug({ pageToken, eventCount: allEvents.length }, 'Fetching next page');
-      } else {
+      if (response.isCaughtUp) {
+        pageToken = response['@nextPage'] || response['@nextLink'];
         hasMore = false;
+      } else {
+        const nextPage = response['@nextPage'] || response['@nextLink'];
+        if (nextPage && nextPage !== pageToken) {
+          pageToken = nextPage;
+          logger.debug({ pageToken, eventCount: allEvents.length }, 'Fetching next page');
+        } else {
+          hasMore = false;
+        }
       }
     }
 

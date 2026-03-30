@@ -26,8 +26,8 @@ describe('MimecastClient', () => {
 
   it('should fetch events from single page', async () => {
     const page: PageResponse = {
-      data: [{ id: '1', type: 'receipt', timestamp: '2024-01-01T00:00:00Z' }],
-      meta: { pagination: {} },
+      value: [{ id: '1', type: 'receipt', timestamp: '2024-01-01T00:00:00Z' }],
+      isCaughtUp: true,
     };
     mockHttpGet.mockResolvedValue(page);
 
@@ -38,12 +38,13 @@ describe('MimecastClient', () => {
 
   it('should paginate through multiple pages', async () => {
     const page1: PageResponse = {
-      data: [{ id: '1', type: 'receipt', timestamp: '2024-01-01T00:00:00Z' }],
-      meta: { pagination: { next: 'token2' } },
+      value: [{ id: '1', type: 'receipt', timestamp: '2024-01-01T00:00:00Z' }],
+      '@nextPage': 'token2',
+      isCaughtUp: false,
     };
     const page2: PageResponse = {
-      data: [{ id: '2', type: 'receipt', timestamp: '2024-01-01T00:01:00Z' }],
-      meta: { pagination: {} },
+      value: [{ id: '2', type: 'receipt', timestamp: '2024-01-01T00:01:00Z' }],
+      isCaughtUp: true,
     };
     mockHttpGet.mockResolvedValueOnce(page1).mockResolvedValueOnce(page2);
 
@@ -55,8 +56,9 @@ describe('MimecastClient', () => {
   it('should stop when rate limit headroom is low', async () => {
     mockRateLimiter.remaining.mockReturnValueOnce(200).mockReturnValue(5);
     const page: PageResponse = {
-      data: [{ id: '1', type: 'receipt', timestamp: '2024-01-01T00:00:00Z' }],
-      meta: { pagination: { next: 'token2' } },
+      value: [{ id: '1', type: 'receipt', timestamp: '2024-01-01T00:00:00Z' }],
+      '@nextPage': 'token2',
+      isCaughtUp: false,
     };
     mockHttpGet.mockResolvedValue(page);
 
@@ -64,10 +66,10 @@ describe('MimecastClient', () => {
     expect(result.events).toHaveLength(1);
   });
 
-  it('should pass fromToken as pageToken param', async () => {
+  it('should pass fromToken as token param', async () => {
     const page: PageResponse = {
-      data: [],
-      meta: { pagination: {} },
+      value: [],
+      isCaughtUp: true,
     };
     mockHttpGet.mockResolvedValue(page);
 
@@ -75,15 +77,15 @@ describe('MimecastClient', () => {
     expect(mockHttpGet).toHaveBeenCalledWith(
       expect.any(String),
       expect.any(Object),
-      expect.objectContaining({ pageToken: 'start-token' }),
+      expect.objectContaining({ token: 'start-token' }),
     );
   });
 
   it('should retry on RateLimitError then succeed', async () => {
     const { RateLimitError } = require('../../../src/shared/errors');
     const page: PageResponse = {
-      data: [{ id: '1', type: 'receipt', timestamp: '2024-01-01T00:00:00Z' }],
-      meta: { pagination: {} },
+      value: [{ id: '1', type: 'receipt', timestamp: '2024-01-01T00:00:00Z' }],
+      isCaughtUp: true,
     };
     mockHttpGet
       .mockRejectedValueOnce(new RateLimitError('Rate limited', 10))

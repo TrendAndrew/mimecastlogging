@@ -6,13 +6,11 @@ export interface MimecastEvent {
 }
 
 export interface PageResponse {
-  data: MimecastEvent[];
-  meta: {
-    pagination?: {
-      pageToken?: string;
-      next?: string;
-    };
-  };
+  value: MimecastEvent[];
+  '@nextLink'?: string;
+  '@nextPage'?: string;
+  pageSize?: number;
+  isCaughtUp?: boolean;
 }
 
 export interface MimecastClientDeps {

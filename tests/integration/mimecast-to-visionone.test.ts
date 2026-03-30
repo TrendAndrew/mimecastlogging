@@ -31,8 +31,8 @@ describe('Integration: Mimecast → Vision One pipeline', () => {
       getToken: () => oauthClient.getToken(),
       rateLimiter,
       httpGet: jest.fn().mockResolvedValue({
-        data: mockEvents,
-        meta: { pagination: {} },
+        value: mockEvents,
+        isCaughtUp: true,
       } as PageResponse),
     });
 
