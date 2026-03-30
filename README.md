@@ -92,26 +92,89 @@ All configuration is via environment variables. Copy `.env.example` to `.env` an
 | `MIMECAST_CLIENT_ID` | Yes | | OAuth 2.0 client ID from Mimecast admin console |
 | `MIMECAST_CLIENT_SECRET` | Yes | | OAuth 2.0 client secret |
 | `MIMECAST_EVENT_TYPES` | Yes | `receipt,ttp-url,ttp-attachment,ttp-impersonation` | Comma-separated event types to fetch |
-| `VISIONONE_BASE_URL` | Yes | `https://api.xdr.trendmicro.com` | Vision One regional API URL |
+| `VISIONONE_INGEST_URL` | Yes | | Vision One SIEM ingestion endpoint URL (e.g. `https://xlogr-ase2.xdr.trendmicro.com/ingest/api/v1/third_party_log/raw`) |
 | `VISIONONE_INGEST_TOKEN` | Yes | | Vision One API token with log ingestion permissions |
 | `VISIONONE_VENDOR` | No | `Mimecast` | Vendor name sent to Vision One |
 | `VISIONONE_PRODUCT` | No | `Email Security` | Product name sent to Vision One |
 | `POLL_INTERVAL_MS` | No | `300000` | Poll interval in milliseconds (min: 10s, max: 1hr) |
 | `LOG_LEVEL` | No | `info` | Log level: `fatal`, `error`, `warn`, `info`, `debug`, `trace` |
 
-### Getting Your Credentials
+### Setting Up Mimecast API 2.0
 
-**Mimecast** (OAuth 2.0 client credentials):
-1. Log in to the Mimecast Administration Console
+This forwarder uses the **Mimecast API 2.0** platform with OAuth 2.0 authentication. API 1.0 (legacy HMAC-based auth) is being sunset — new API 1.0 applications can no longer be created.
+
+#### Step 1: Create an API 2.0 Application
+
+1. Log in to the **Mimecast Administration Console**
 2. Navigate to **Services** > **API and Platform Integrations**
-3. Create a new **Cloud Gateway** API application
-4. Note the Client ID and Client Secret
+3. Click **Add API Application** (or **Your Application Integrations** > **Add New**)
+4. Fill in the application details:
 
-**Vision One** (API token):
-1. Log in to the Vision One console
+| Field | Suggested Value | Notes |
+|-------|----------------|-------|
+| **Integration Name** | `TrendMicro Vision One SIEM Integration` | Descriptive name for your reference |
+| **Application Name** | `Vision One SIEM Integration` | **Cannot be changed after creation** — choose carefully |
+| **Products** | **Threats, Security Events and Data for CG** | Required — this grants access to the `/siem/v1/events/cg` endpoint |
+| **API Service Account** | Create a custom role with read-only SIEM access | Principle of least privilege — only needs to read events |
+| **Description** | `Forwards Mimecast SIEM events to Trend Micro Vision One XDR` | For audit trail |
+
+> **Note on Products**: Only select **Audit Events** if you also want to forward admin audit logs. For security event forwarding, **Threats, Security Events and Data for CG** is the required product group.
+
+5. Accept the API Terms and Conditions
+6. Click **Create**
+
+#### Step 2: Get Your Client Credentials
+
+After creating the application:
+
+1. Open the application you just created
+2. Copy the **Client ID** → set as `MIMECAST_CLIENT_ID`
+3. Copy the **Client Secret** → set as `MIMECAST_CLIENT_SECRET`
+
+> **Security**: Store these credentials securely. In production, use Azure Key Vault references or environment-level secrets — never commit them to source control.
+
+#### Step 3: Determine Your Base URL
+
+Set `MIMECAST_BASE_URL` based on your Mimecast tenant region. For API 2.0, the global endpoint auto-routes to the nearest instance:
+
+- **Recommended**: `https://api.services.mimecast.com` (global auto-routing)
+- See [Mimecast Regional Base URLs](#mimecast-regional-base-urls) below for region-specific endpoints
+
+#### Step 4: Verify the Integration
+
+Test your credentials with a quick curl:
+
+```bash
+# Get an OAuth token
+curl -X POST https://api.services.mimecast.com/oauth/token \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=client_credentials&client_id=YOUR_CLIENT_ID&client_secret=YOUR_CLIENT_SECRET"
+
+# Fetch events (replace YOUR_TOKEN with the access_token from above)
+curl -H "Authorization: Bearer YOUR_TOKEN" \
+  "https://api.services.mimecast.com/siem/v1/events/cg"
+```
+
+A successful response returns `{ "data": [...], "meta": { ... } }`.
+
+#### API 2.0 Rate Limits
+
+| Constraint | Value |
+|------------|-------|
+| Stream API calls | 300 per hour |
+| Events per page | 100 maximum |
+| Max throughput (stream) | ~30,000 events/hour |
+| Token validity | 30 minutes |
+
+The forwarder has a built-in sliding window rate limiter matching these limits.
+
+### Setting Up Vision One
+
+1. Log in to the **Vision One console**
 2. Navigate to **Administration** > **API Keys**
 3. Create a new API key with **Run custom scripts** or **Third-party integration** permissions
 4. Note the regional API base URL for your tenant (e.g., `https://api.xdr.trendmicro.com` for US)
+5. Set `VISIONONE_INGEST_TOKEN` to your API key and `VISIONONE_BASE_URL` to your regional URL
 
 ### Vision One Regional Base URLs
 

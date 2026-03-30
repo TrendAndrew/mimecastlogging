@@ -6,7 +6,7 @@ describe('loadConfig', () => {
     MIMECAST_CLIENT_ID: 'test-client-id',
     MIMECAST_CLIENT_SECRET: 'test-secret',
     MIMECAST_EVENT_TYPES: 'receipt,ttp-url',
-    VISIONONE_BASE_URL: 'https://api.xdr.trendmicro.com',
+    VISIONONE_INGEST_URL: 'https://xlogr-ase2.xdr.trendmicro.com/ingest/api/v1/third_party_log/raw',
     VISIONONE_INGEST_TOKEN: 'test-token',
     VISIONONE_VENDOR: 'Mimecast',
     VISIONONE_PRODUCT: 'Email Security',

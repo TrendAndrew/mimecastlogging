@@ -38,7 +38,7 @@ describe('Integration: Mimecast → Vision One pipeline', () => {
 
     const ingestCalls: string[] = [];
     const visionOneClient = new VisionOneClient({
-      baseUrl: 'https://mock.xdr.trendmicro.com',
+      ingestUrl: 'https://mock.xdr.trendmicro.com/ingest/api/v1/third_party_log/raw',
       ingestToken: 'mock-v1-token',
       vendor: 'Mimecast',
       product: 'Email Security',

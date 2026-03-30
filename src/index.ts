@@ -48,7 +48,7 @@ async function main(): Promise<void> {
   });
 
   const visionOneClient = new VisionOneClient({
-    baseUrl: config.visionOne.baseUrl,
+    ingestUrl: config.visionOne.ingestUrl,
     ingestToken: config.visionOne.ingestToken,
     vendor: config.visionOne.vendor,
     product: config.visionOne.product,

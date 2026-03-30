@@ -5,7 +5,7 @@ export interface IngestResult {
 }
 
 export interface VisionOneClientDeps {
-  baseUrl: string;
+  ingestUrl: string;
   ingestToken: string;
   vendor: string;
   product: string;

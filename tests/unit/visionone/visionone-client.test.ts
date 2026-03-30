@@ -9,7 +9,7 @@ describe('VisionOneClient', () => {
   beforeEach(() => {
     mockHttpPost = jest.fn().mockResolvedValue({ status: 200 });
     const deps: VisionOneClientDeps = {
-      baseUrl: 'https://api.xdr.trendmicro.com',
+      ingestUrl: 'https://xlogr-ase2.xdr.trendmicro.com/ingest/api/v1/third_party_log/raw',
       ingestToken: 'test-token',
       vendor: 'Mimecast',
       product: 'Email Security',
@@ -24,7 +24,7 @@ describe('VisionOneClient', () => {
     expect(result.accepted).toBe(true);
     expect(result.chunksSubmitted).toBe(1);
     expect(mockHttpPost).toHaveBeenCalledWith(
-      expect.stringContaining('/v3.0/xdr/oat/dataPipeline/packageLogs'),
+      'https://xlogr-ase2.xdr.trendmicro.com/ingest/api/v1/third_party_log/raw',
       payload,
       expect.objectContaining({
         Authorization: 'Bearer test-token',

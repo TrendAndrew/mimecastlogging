@@ -28,7 +28,7 @@ export class VisionOneClient {
 
   private async postChunk(chunk: string, chunkNum: number, totalChunks: number): Promise<void> {
     const logger = getLogger();
-    const url = `${this.deps.baseUrl}/v3.0/xdr/oat/dataPipeline/packageLogs`;
+    const url = this.deps.ingestUrl;
 
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       try {
